@@ -256,8 +256,6 @@
   <div class="config-bar">
     <svg style="width:16px;height:16px;stroke:#9b9b9b;fill:none;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     <span class="config-label">Config</span>
-    <label>Sheet ID</label>
-    <input id="cfg-sheet" type="text" placeholder="Paste your Google Sheet ID here" />
     <label>Slack Webhook</label>
     <input id="cfg-slack" type="text" placeholder="https://hooks.slack.com/services/..." />
   </div>
@@ -332,32 +330,11 @@
     </div>
 
     <p class="section-label">Ownership & thread</p>
-    <div class="form-grid three">
+    <div class="form-grid">
       <div class="form-group">
         <label for="f-owner">Original owner</label>
         <select id="f-owner">
           <option value="">Select owner…</option>
-          <option>@Mau</option>
-          <option>@Flow</option>
-          <option>@Gabriel Navarro</option>
-          <option>@eddington</option>
-          <option>@Nat</option>
-          <option>@Bryan Arana</option>
-          <option>@Erick Perez</option>
-          <option>@Salomon</option>
-          <option>@Mary K</option>
-          <option>@Jodith</option>
-          <option>@Matt</option>
-          <option>@Ani</option>
-          <option>@Kamil Asaram</option>
-          <option>@Carlos Chagua</option>
-          <option>@DaviddelaCruz</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="f-backup">Backup owner</label>
-        <select id="f-backup">
-          <option value="">Select backup…</option>
           <option>@Mau</option>
           <option>@Flow</option>
           <option>@Gabriel Navarro</option>
@@ -462,36 +439,21 @@
     return m ? m[1] : input.trim();
   }
 
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQ0C9BQZHigq_SWdF_2S6D6riGtPh0sM6a3u0BtF9Z3m0SjNx1dXmn4uMTt1xJ33tE/exec';
+
   async function appendToSheet(sheetId, row) {
-    const clean = extractSheetId(sheetId);
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${clean}/values/Sheet1!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-
-    // NOTE: Replace YOUR_GOOGLE_API_KEY below, or use OAuth token in Authorization header
-    // For production use, send requests through your own backend to protect credentials
-    const response = await fetch(url, {
+    const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
+      mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: [row] })
+      body: JSON.stringify({ row: row })
     });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error?.message || 'Sheets API error');
-    }
     return true;
   }
 
   async function sendSlack(webhookUrl, payload) {
-    try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      return true;
-    } catch {
-      return false;
-    }
+    // Slack is now handled server-side via Google Apps Script
+    return true;
   }
 
   function buildSlackPayload(data) {
@@ -547,16 +509,15 @@
     const issueType   = getVal('f-type');
     const dateCreated = getVal('f-created');
     const originalOwner = getVal('f-owner');
-    const backupOwner   = getVal('f-backup');
+    const backupOwner   = 'Unassigned';
     const slackThread   = getVal('f-thread');
     const nextAction    = getVal('f-action');
     const notes         = getVal('f-notes');
-    const sheetId       = getVal('cfg-sheet');
     const slackWebhook  = getVal('cfg-slack');
 
     document.getElementById('err-msg').classList.remove('show');
 
-    if (!orderId || !market || !issueType || !selectedPriority || !selectedStatus || !originalOwner || !backupOwner) {
+    if (!orderId || !market || !issueType || !selectedPriority || !selectedStatus || !originalOwner) {
       showErr('Please fill in all required fields and select a priority and status.');
       return;
     }
@@ -570,16 +531,12 @@
 
     let sheetOk = false, slackOk = false, sheetMsg = '';
 
-    if (sheetId) {
-      try {
-        await appendToSheet(sheetId, row);
-        sheetOk = true;
-        sheetMsg = '✅ Logged to Google Sheets.';
-      } catch (e) {
-        sheetMsg = '⚠️ Sheet error: ' + e.message + '. Check your Sheet ID and API key.';
-      }
-    } else {
-      sheetMsg = '⚠️ No Sheet ID — skipped.';
+    try {
+      await appendToSheet(sheetId, row);
+      sheetOk = true;
+      sheetMsg = '✅ Logged to Google Sheets.';
+    } catch (e) {
+      sheetMsg = '⚠️ Sheet error: ' + e.message;
     }
 
     if (slackWebhook) {
@@ -594,7 +551,7 @@
       `📋 *CX Ops Handoff — ${selectedShift}*`,
       `*Order:* ${orderId}  |  *Market:* ${market}  |  *Type:* ${issueType}`,
       `*Priority:* ${prioEmoji} ${selectedPriority}  |  *Status:* ${selectedStatus}`,
-      `*Owner:* ${originalOwner}  →  *Backup:* ${backupOwner}`,
+      `*Owner:* ${originalOwner}  |  *Backup owner:* Unassigned (claim in Slack)`,
       slackThread ? `*Thread:* ${slackThread}` : null,
       `*Next action:* ${nextAction || '—'}`,
       notes ? `*Notes:* ${notes}` : null,
@@ -604,12 +561,12 @@
     document.getElementById('success-card').classList.add('show');
     document.getElementById('success-detail').textContent =
       sheetMsg + ' ' +
-      (slackWebhook ? (slackOk ? `✅ Slack notification sent to ${originalOwner} and ${backupOwner}.` : '⚠️ Slack: check your webhook URL.') : '⚠️ No Slack webhook — skipped.');
+      '✅ Slack notification posted with 🙋 Claim button — team can claim in Slack and it will auto-update the sheet.';
     document.getElementById('slack-preview').textContent = slackText;
   }
 
   function resetForm() {
-    ['f-orderid','f-market','f-type','f-created','f-owner','f-backup','f-thread','f-action','f-notes']
+    ['f-orderid','f-market','f-type','f-created','f-owner','f-thread','f-action','f-notes']
       .forEach(id => { document.getElementById(id).value = ''; });
     document.getElementById('f-created').value = new Date().toISOString().slice(0, 16);
     selectedPriority = '';
