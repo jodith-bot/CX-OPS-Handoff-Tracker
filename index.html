@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CX Ops Handoff Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --surface2: #f1f0ed;
+      --border: rgba(0,0,0,0.1);
+      --border-md: rgba(0,0,0,0.18);
+      --text: #1a1a1a;
+      --text-secondary: #6b6b6b;
+      --text-hint: #9b9b9b;
+      --green-dark: #0F6E56;
+      --green-mid: #1D9E75;
+      --green-light: #E1F5EE;
+      --green-border: #5DCAA5;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 720px;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 2rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-icon {
+      width: 42px; height: 42px;
+      border-radius: var(--radius);
+      background: var(--green-light);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .topbar-icon svg { width: 22px; height: 22px; stroke: var(--green-dark); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .topbar-title { font-size: 18px; font-weight: 600; }
+    .shift-toggle { display: flex; gap: 6px; margin-left: auto; }
+    .shift-btn {
+      padding: 6px 14px; font-size: 13px; font-family: inherit;
+      border-radius: var(--radius); border: 1px solid var(--border-md);
+      background: transparent; color: var(--text-secondary); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .shift-btn.active { background: var(--green-dark); color: #fff; border-color: var(--green-dark); }
+
+    /* ── Config bar ── */
+    .config-bar {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .config-label { font-size: 11px; font-weight: 600; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.07em; }
+    .config-bar label { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+    .config-bar input {
+      font-size: 13px; font-family: inherit;
+      padding: 5px 9px; flex: 1; min-width: 140px;
+      border: 1px solid var(--border-md); border-radius: var(--radius);
+      background: var(--surface); color: var(--text); outline: none;
+    }
+    .config-bar input:focus { border-color: var(--green-mid); box-shadow: 0 0 0 3px rgba(29,158,117,0.12); }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 11px; font-weight: 600; color: var(--text-hint);
+      text-transform: uppercase; letter-spacing: 0.07em;
+      margin-bottom: 8px; margin-top: 1.5rem;
+    }
+
+    /* ── Form card ── */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group.full { grid-column: 1 / -1; }
+
+    label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+    input[type="text"],
+    input[type="datetime-local"],
+    select,
+    textarea {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      padding: 8px 11px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-md);
+      background: var(--surface);
+      color: var(--text);
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--green-mid);
+      box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+    textarea { resize: vertical; min-height: 76px; line-height: 1.5; }
+
+    /* ── Chips ── */
+    .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .chip {
+      padding: 7px 12px; font-size: 13px; font-family: inherit;
+      border-radius: var(--radius); border: 1px solid var(--border-md);
+      cursor: pointer; transition: all 0.15s;
+      color: var(--text-secondary); background: transparent;
+      white-space: nowrap;
+    }
+
+    .priority-chip { flex: 1; text-align: center; }
+
+    .chip[data-val="P1"].selected { background: #FCEBEB; border-color: #E24B4A; color: #A32D2D; }
+    .chip[data-val="P2"].selected { background: #FAEEDA; border-color: #EF9F27; color: #854F0B; }
+    .chip[data-val="P3"].selected { background: #E6F1FB; border-color: #378ADD; color: #185FA5; }
+    .chip[data-val="P4"].selected { background: #EAF3DE; border-color: #639922; color: #3B6D11; }
+
+    .chip[data-val="Open"].selected { background: #E6F1FB; border-color: #378ADD; color: #185FA5; }
+    .chip[data-val="In Progress"].selected { background: #FAEEDA; border-color: #EF9F27; color: #854F0B; }
+    .chip[data-val="Escalated"].selected { background: #FCEBEB; border-color: #E24B4A; color: #A32D2D; }
+    .chip[data-val="Pending Customer"].selected { background: #EEEDFE; border-color: #7F77DD; color: #3C3489; }
+    .chip[data-val="Pending 3PL"].selected { background: #FAECE7; border-color: #D85A30; color: #712B13; }
+    .chip[data-val="Resolved"].selected { background: #EAF3DE; border-color: #639922; color: #3B6D11; }
+
+    /* ── Submit ── */
+    .submit-row { display: flex; align-items: center; gap: 12px; margin-top: 1.5rem; }
+    .submit-btn {
+      padding: 10px 26px; background: var(--green-dark); color: #fff;
+      border: none; border-radius: var(--radius); font-size: 14px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      display: flex; align-items: center; gap: 8px; transition: opacity 0.15s;
+    }
+    .submit-btn:hover { opacity: 0.88; }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .submit-btn svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .spinner.show { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .err-msg { font-size: 13px; color: #A32D2D; display: none; }
+    .err-msg.show { display: block; }
+
+    /* ── Success card ── */
+    .success-card {
+      display: none;
+      background: var(--green-light);
+      border: 1px solid var(--green-border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .success-card.show { display: block; }
+    .success-card h3 { font-size: 15px; font-weight: 600; color: #085041; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .success-card h3 svg { width: 18px; height: 18px; stroke: #085041; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .success-card p { font-size: 13px; color: #0F6E56; line-height: 1.6; }
+    .preview-label { font-size: 11px; font-weight: 600; color: #0F6E56; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 14px; margin-bottom: 6px; }
+    .slack-preview {
+      background: #fff;
+      border: 1px solid var(--green-border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 13px; font-family: 'Courier New', monospace;
+      color: var(--text); line-height: 1.7; white-space: pre-wrap;
+    }
+    .reset-btn {
+      margin-top: 14px;
+      padding: 8px 20px; background: #085041; color: #fff;
+      border: none; border-radius: var(--radius); font-size: 13px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .reset-btn:hover { opacity: 0.85; }
+    .reset-btn svg { width: 15px; height: 15px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0 0; }
+
+    @media (max-width: 560px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid.three { grid-template-columns: 1fr; }
+      .form-group.full { grid-column: 1; }
+      .topbar { flex-wrap: wrap; }
+      .shift-toggle { margin-left: 0; }
+      .priority-chip { font-size: 12px; padding: 6px 4px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    </div>
+    <div>
+      <div class="topbar-title">CX Ops Handoff Tracker</div>
+    </div>
+    <div class="shift-toggle">
+      <button class="shift-btn active" data-shift="Morning → PM" onclick="setShift(this)">Morning → PM</button>
+      <button class="shift-btn" data-shift="PM → Morning" onclick="setShift(this)">PM → Morning</button>
+    </div>
+  </div>
+
+  <!-- Config bar -->
+  <div class="config-bar">
+    <svg style="width:16px;height:16px;stroke:#9b9b9b;fill:none;stroke-width:2;flex-shrink:0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span class="config-label">Config</span>
+    <label>Sheet ID</label>
+    <input id="cfg-sheet" type="text" placeholder="Paste your Google Sheet ID here" />
+    <label>Slack Webhook</label>
+    <input id="cfg-slack" type="text" placeholder="https://hooks.slack.com/services/..." />
+  </div>
+
+  <!-- Form card -->
+  <div class="form-card" id="form-area">
+
+    <p class="section-label" style="margin-top:0">Case details</p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="f-orderid">Order ID</label>
+        <input id="f-orderid" type="text" placeholder="e.g. ORD-20491" />
+      </div>
+      <div class="form-group">
+        <label for="f-market">Market</label>
+        <select id="f-market">
+          <option value="">Select market…</option>
+          <option>NY</option>
+          <option>LA</option>
+          <option>DC Hub</option>
+          <option>AUS</option>
+          <option>TOR</option>
+          <option>MIA</option>
+          <option>ATL</option>
+          <option>SEA</option>
+          <option>NJ</option>
+          <option>CHI</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="f-type">Issue type</label>
+        <select id="f-type">
+          <option value="">Select type…</option>
+          <option>Missing Bag</option>
+          <option>Wrong Bag</option>
+          <option>Damage Meal</option>
+          <option>Damage Bag/Box</option>
+          <option>Customer Address Issue</option>
+          <option>Late Delivery</option>
+          <option>Integration Issue</option>
+          <option>Refused Order</option>
+          <option>Wrong Delivery</option>
+          <option>Access Code</option>
+          <option>Road Closure</option>
+          <option>OLD Bag Issue</option>
+          <option>Incorrect PIN location in OF</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="f-created">Date created</label>
+        <input id="f-created" type="datetime-local" />
+      </div>
+    </div>
+
+    <p class="section-label">Priority</p>
+    <div class="chip-row">
+      <button class="chip priority-chip" data-val="P1" onclick="setPriority(this)">🔴 P1 – Critical</button>
+      <button class="chip priority-chip" data-val="P2" onclick="setPriority(this)">🟠 P2 – High</button>
+      <button class="chip priority-chip" data-val="P3" onclick="setPriority(this)">🔵 P3 – Medium</button>
+      <button class="chip priority-chip" data-val="P4" onclick="setPriority(this)">🟢 P4 – Low</button>
+    </div>
+
+    <p class="section-label">Status</p>
+    <div class="chip-row">
+      <button class="chip" data-val="Open" onclick="setStatus(this)">Open</button>
+      <button class="chip" data-val="In Progress" onclick="setStatus(this)">In Progress</button>
+      <button class="chip" data-val="Escalated" onclick="setStatus(this)">Escalated</button>
+      <button class="chip" data-val="Pending Customer" onclick="setStatus(this)">Pending Customer</button>
+      <button class="chip" data-val="Pending 3PL" onclick="setStatus(this)">Pending 3PL</button>
+      <button class="chip" data-val="Resolved" onclick="setStatus(this)">Resolved</button>
+    </div>
+
+    <p class="section-label">Ownership & thread</p>
+    <div class="form-grid three">
+      <div class="form-group">
+        <label for="f-owner">Original owner</label>
+        <select id="f-owner">
+          <option value="">Select owner…</option>
+          <option>@Mau</option>
+          <option>@Flow</option>
+          <option>@Gabriel Navarro</option>
+          <option>@eddington</option>
+          <option>@Nat</option>
+          <option>@Bryan Arana</option>
+          <option>@Erick Perez</option>
+          <option>@Salomon</option>
+          <option>@Mary K</option>
+          <option>@Jodith</option>
+          <option>@Matt</option>
+          <option>@Ani</option>
+          <option>@Kamil Asaram</option>
+          <option>@Carlos Chagua</option>
+          <option>@DaviddelaCruz</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="f-backup">Backup owner</label>
+        <select id="f-backup">
+          <option value="">Select backup…</option>
+          <option>@Mau</option>
+          <option>@Flow</option>
+          <option>@Gabriel Navarro</option>
+          <option>@eddington</option>
+          <option>@Nat</option>
+          <option>@Bryan Arana</option>
+          <option>@Erick Perez</option>
+          <option>@Salomon</option>
+          <option>@Mary K</option>
+          <option>@Jodith</option>
+          <option>@Matt</option>
+          <option>@Ani</option>
+          <option>@Kamil Asaram</option>
+          <option>@Carlos Chagua</option>
+          <option>@DaviddelaCruz</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="f-thread">Slack thread link</label>
+        <input id="f-thread" type="text" placeholder="https://…" />
+      </div>
+    </div>
+
+    <p class="section-label">Follow-up details</p>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label for="f-action">Next action</label>
+        <textarea id="f-action" placeholder="What needs to happen before this case can close?"></textarea>
+      </div>
+      <div class="form-group full">
+        <label for="f-notes">Handoff notes</label>
+        <textarea id="f-notes" placeholder="Context, blockers, customer sentiment, anything the next agent should know…"></textarea>
+      </div>
+    </div>
+
+    <hr />
+
+    <div class="submit-row">
+      <button class="submit-btn" id="submit-btn" onclick="submitHandoff(this)">
+        <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Submit handoff
+        <div class="spinner" id="spinner"></div>
+      </button>
+      <span class="err-msg" id="err-msg"></span>
+    </div>
+  </div>
+
+  <!-- Success card -->
+  <div class="success-card" id="success-card">
+    <h3>
+      <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      Handoff logged successfully
+    </h3>
+    <p id="success-detail"></p>
+    <div class="preview-label">Slack notification preview</div>
+    <div class="slack-preview" id="slack-preview"></div>
+    <button class="reset-btn" onclick="resetForm()">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Log another case
+    </button>
+  </div>
+
+</div>
+
+<script>
+  let selectedPriority = '';
+  let selectedStatus = '';
+  let selectedShift = 'Morning → PM';
+
+  document.getElementById('f-created').value = new Date().toISOString().slice(0, 16);
+
+  function setShift(el) {
+    document.querySelectorAll('.shift-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    selectedShift = el.dataset.shift;
+  }
+
+  function setPriority(el) {
+    document.querySelectorAll('.priority-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedPriority = el.dataset.val;
+  }
+
+  function setStatus(el) {
+    document.querySelectorAll('.chip:not(.priority-chip)').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedStatus = el.dataset.val;
+  }
+
+  function getVal(id) {
+    return document.getElementById(id).value.trim();
+  }
+
+  function showErr(msg) {
+    const el = document.getElementById('err-msg');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  function extractSheetId(input) {
+    const m = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return m ? m[1] : input.trim();
+  }
+
+  async function appendToSheet(sheetId, row) {
+    const clean = extractSheetId(sheetId);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${clean}/values/Sheet1!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+
+    // NOTE: Replace YOUR_GOOGLE_API_KEY below, or use OAuth token in Authorization header
+    // For production use, send requests through your own backend to protect credentials
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [row] })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || 'Sheets API error');
+    }
+    return true;
+  }
+
+  async function sendSlack(webhookUrl, payload) {
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function buildSlackPayload(data) {
+    const prioEmoji = { P1: '🔴', P2: '🟠', P3: '🔵', P4: '🟢' }[data.priority] || '⚪';
+    const statusEmoji = {
+      'Open': '📂', 'In Progress': '⚙️', 'Escalated': '🚨',
+      'Pending Customer': '⏳', 'Pending 3PL': '🚚', 'Resolved': '✅'
+    }[data.status] || '📋';
+
+    return {
+      text: `📋 CX Ops Handoff — ${data.shift}`,
+      blocks: [
+        { type: 'header', text: { type: 'plain_text', text: `📋 CX Ops Handoff — ${data.shift}`, emoji: true } },
+        {
+          type: 'section',
+          fields: [
+            { type: 'mrkdwn', text: `*Order ID*\n${data.orderId || '—'}` },
+            { type: 'mrkdwn', text: `*Market*\n${data.market || '—'}` },
+            { type: 'mrkdwn', text: `*Issue Type*\n${data.issueType || '—'}` },
+            { type: 'mrkdwn', text: `*Date Created*\n${data.dateCreated || '—'}` },
+            { type: 'mrkdwn', text: `*Priority*\n${prioEmoji} ${data.priority || '—'}` },
+            { type: 'mrkdwn', text: `*Status*\n${statusEmoji} ${data.status || '—'}` }
+          ]
+        },
+        {
+          type: 'section',
+          fields: [
+            { type: 'mrkdwn', text: `*Original Owner*\n${data.originalOwner || '—'}` },
+            { type: 'mrkdwn', text: `*Backup Owner*\n${data.backupOwner || '—'}` }
+          ]
+        },
+        ...(data.slackThread ? [{
+          type: 'section',
+          text: { type: 'mrkdwn', text: `*Slack Thread*\n<${data.slackThread}|View thread>` }
+        }] : []),
+        { type: 'section', text: { type: 'mrkdwn', text: `*Next Action*\n${data.nextAction || '—'}` } },
+        ...(data.notes ? [{
+          type: 'section',
+          text: { type: 'mrkdwn', text: `*Handoff Notes*\n${data.notes}` }
+        }] : []),
+        { type: 'divider' },
+        {
+          type: 'context',
+          elements: [{ type: 'mrkdwn', text: `Logged at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET` }]
+        }
+      ]
+    };
+  }
+
+  async function submitHandoff(btn) {
+    const orderId     = getVal('f-orderid');
+    const market      = getVal('f-market');
+    const issueType   = getVal('f-type');
+    const dateCreated = getVal('f-created');
+    const originalOwner = getVal('f-owner');
+    const backupOwner   = getVal('f-backup');
+    const slackThread   = getVal('f-thread');
+    const nextAction    = getVal('f-action');
+    const notes         = getVal('f-notes');
+    const sheetId       = getVal('cfg-sheet');
+    const slackWebhook  = getVal('cfg-slack');
+
+    document.getElementById('err-msg').classList.remove('show');
+
+    if (!orderId || !market || !issueType || !selectedPriority || !selectedStatus || !originalOwner || !backupOwner) {
+      showErr('Please fill in all required fields and select a priority and status.');
+      return;
+    }
+
+    btn.disabled = true;
+    document.getElementById('spinner').classList.add('show');
+
+    const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+    const row = [timestamp, selectedShift, orderId, market, issueType, dateCreated, selectedPriority, selectedStatus, originalOwner, backupOwner, slackThread, nextAction, notes];
+    const data = { shift: selectedShift, orderId, market, issueType, dateCreated, priority: selectedPriority, status: selectedStatus, originalOwner, backupOwner, slackThread, nextAction, notes };
+
+    let sheetOk = false, slackOk = false, sheetMsg = '';
+
+    if (sheetId) {
+      try {
+        await appendToSheet(sheetId, row);
+        sheetOk = true;
+        sheetMsg = '✅ Logged to Google Sheets.';
+      } catch (e) {
+        sheetMsg = '⚠️ Sheet error: ' + e.message + '. Check your Sheet ID and API key.';
+      }
+    } else {
+      sheetMsg = '⚠️ No Sheet ID — skipped.';
+    }
+
+    if (slackWebhook) {
+      slackOk = await sendSlack(slackWebhook, buildSlackPayload(data));
+    }
+
+    document.getElementById('spinner').classList.remove('show');
+    btn.disabled = false;
+
+    const prioEmoji = { P1: '🔴', P2: '🟠', P3: '🔵', P4: '🟢' }[selectedPriority] || '';
+    const slackText = [
+      `📋 *CX Ops Handoff — ${selectedShift}*`,
+      `*Order:* ${orderId}  |  *Market:* ${market}  |  *Type:* ${issueType}`,
+      `*Priority:* ${prioEmoji} ${selectedPriority}  |  *Status:* ${selectedStatus}`,
+      `*Owner:* ${originalOwner}  →  *Backup:* ${backupOwner}`,
+      slackThread ? `*Thread:* ${slackThread}` : null,
+      `*Next action:* ${nextAction || '—'}`,
+      notes ? `*Notes:* ${notes}` : null,
+    ].filter(Boolean).join('\n');
+
+    document.getElementById('form-area').style.display = 'none';
+    document.getElementById('success-card').classList.add('show');
+    document.getElementById('success-detail').textContent =
+      sheetMsg + ' ' +
+      (slackWebhook ? (slackOk ? `✅ Slack notification sent to ${originalOwner} and ${backupOwner}.` : '⚠️ Slack: check your webhook URL.') : '⚠️ No Slack webhook — skipped.');
+    document.getElementById('slack-preview').textContent = slackText;
+  }
+
+  function resetForm() {
+    ['f-orderid','f-market','f-type','f-created','f-owner','f-backup','f-thread','f-action','f-notes']
+      .forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('f-created').value = new Date().toISOString().slice(0, 16);
+    selectedPriority = '';
+    selectedStatus = '';
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    document.getElementById('success-card').classList.remove('show');
+    document.getElementById('form-area').style.display = '';
+    document.getElementById('err-msg').classList.remove('show');
+  }
+</script>
+</body>
+</html>
