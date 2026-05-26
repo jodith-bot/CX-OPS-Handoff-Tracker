@@ -434,7 +434,7 @@
 
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxQ0C9BQZHigq_SWdF_2S6D6riGtPh0sM6a3u0BtF9Z3m0SjNx1dXmn4uMTt1xJ33tE/exec';
 
-  async function appendToSheet(sheetId, row) {
+  async function appendToSheet(row) {
     const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
@@ -525,7 +525,7 @@
     let sheetOk = false, slackOk = false, sheetMsg = '';
 
     try {
-      await appendToSheet(sheetId, row);
+      await appendToSheet(row);
       sheetOk = true;
       sheetMsg = '✅ Logged to Google Sheets.';
     } catch (e) {
